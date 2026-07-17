@@ -1,0 +1,1171 @@
+--[[
+    ================================================================
+    [ SCRIPT INFORMATION ]
+    Project: Custom Script
+    Author: OYB
+    YouTube: https://www.youtube.com/channel/UCAlXXV1Hbvf7WbfXARuVtiQ
+    
+    [ TERMS AND CONDITIONS ]
+    - You ARE allowed to use and modify this script for your own games.
+    - You ARE NOT allowed to re-upload, redistribute, or claim 
+      ownership of this script.
+    - Removing or altering these credits is strictly prohibited.
+    
+    Copyright (c) 2026 OYB. All rights reserved.
+    ================================================================
+]]
+
+-- ⚠️ IMPORTANT: Put this code at the VERY TOP of your Main Script (before obfuscating) ⚠️
+
+local ProtectionConfig = {
+    -- 🔴 CRITICAL: This MUST exactly match the 'Secret' value in your Key System's Config!
+    -- If your Key System has: Secret = "Test"
+    -- Then this must also be: SecretKey = "Test"
+    SecretKey = "2107",
+    
+    -- The name of your Hub (shown in the kick message if they try to bypass)
+    HubName = "NNVN Hub"
+}
+
+-- Anti-Bypass Logic: Checks if the Key System successfully set the global variable
+if not _G[ProtectionConfig.SecretKey] then
+    local player = game:GetService("Players").LocalPlayer
+    if player then
+        player:Kick("\n🛡️ Unauthorized Execution 🛡️\n\nPlease use the official Key System to run " .. ProtectionConfig.HubName)
+    end
+    return -- Stops the rest of the script from loading!
+end
+
+-------------------------------------------------------------------------------
+-- 👇 YOUR MAIN SCRIPT CODE STARTS HERE 👇
+-------------------------------------------------------------------------------
+--[[
+    NNVN Hub | Sell Lemons
+    Made by N0NAMEVN
+    Version: 2.0
+--]]
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+if not Rayfield then
+    warn("[ERROR]: Failed to load Rayfield.")
+    return
+end
+
+local Window = Rayfield:CreateWindow({
+    Name = "NNVN Hub | Sell Lemons",
+    Icon = 0,
+    LoadingTitle = "NNVN Hub",
+    LoadingSubtitle = "Made by N0NAMEVN",
+    ShowText = "Sell Lemons Script",
+    Theme = "Aqua",
+
+    ToggleUIKeybind = Enum.KeyCode.RightShift,
+
+    DisableRayfieldPrompts = true,
+    DisableBuildWarnings = true,
+
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "NNVN_Configs",
+        FileName = "Config_SellLemons"
+    },
+
+    Discord = {
+        Enabled = true,
+        Invite = "discord.gg/yourdiscord",
+        RememberJoins = false
+    },
+})
+
+if not Window then
+    warn("[ERROR]: Failed to load Window.")
+    return
+end
+
+-- ===== CORE FUNCTIONS =====
+local function DestroyUI(value)
+    if value then 
+        task.wait(value) 
+    end
+    Rayfield:Destroy()
+end
+
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer
+
+if not LocalPlayer then
+    warn("[ERROR]: Failed to load LocalPlayer.")
+    return
+end
+
+-- Anti-AFK
+local SuccessIdle, ErrIdle = pcall(function()
+    for _, idle in pairs(getconnections(LocalPlayer.Idled)) do
+        idle:Disable()
+    end
+    game:GetService("VirtualUser"):CaptureController()
+    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+end)
+
+if not SuccessIdle then
+    warn("[ERROR]: Anti-Idle failed. | Error: " .. tostring(ErrIdle))
+end
+
+-- ===== DATA STORAGE =====
+local ScriptData = {
+    PlayerTycoon = nil,
+    Values = nil,
+    Powers = nil,
+    Streams = nil,
+
+    -- Main toggles
+    AutoBuy = false,
+    AutoUpgrade = false,
+    AutoRebirth = false,
+    AutoEvolve = false,
+    AutoAscend = false,
+    AutoBuyPowers = false,
+    AutoWakeIncome = false,
+    AutoPhoneOffers = false,
+    AutoCollectFruits = false,
+    AutoClickButton = false,
+
+    -- Settings
+    MainSettings = {
+        ButtonBuy = {
+            BuyInterval = 0.05,
+            UseForeverPurchase = false,
+            BuyAmount = 1,
+        },
+        Rebirth = {
+            MaximumRebirths = 0,
+            MinimumPotential = 1000,
+            XFactor = 10,
+            RebirthWhenUnableToBuy = false,
+            TimeBeforeRebirthWhenUnableToBuy = 30,
+            RebirthAfterCertainTime = false,
+            TimeAmount = 60,
+            AutoRebirthDelay = 2.5,
+        },
+        Evolve = {
+            MaximumEvolution = 0,
+            AutoEvolveDelay = 1,
+        },
+        Ascend = {
+            AutoAscendDelay = 1,
+        },
+        FruitCollect = {
+            CollectDelay = 0.1,
+            TeleportToTree = true,
+        },
+        Upgrade = {
+            UpgradeAmount = 10,
+            UpgradeDelay = 0.5,
+        },
+    },
+
+    Modules = {
+        Tycoon = nil,
+        Analyzer = nil,
+        Balance = nil,
+        Balances = nil,
+        Upgrades = nil,
+        Rebirth = nil,
+        Evolve = nil,
+        Ascension = nil,
+        PhoneOffers = nil,
+        TycoonPowers = nil,
+    },
+
+    Remotes = {
+        Rebirth = nil,
+        Evolve = nil,
+        Ascend = nil,
+        UpgradePowerLevel = nil,
+        WakeIncomeStream = nil,
+        PhoneOffer = nil,
+    },
+
+    Stats = {
+        TotalRebirths = 0,
+        TotalEvolves = 0,
+        TotalAscends = 0,
+        TotalFruitsCollected = 0,
+        StartTime = tick(),
+        MoneyEarned = 0,
+    },
+}
+
+-- ===== HELPER FUNCTIONS =====
+local function FindValues(Value, AnotherChild, ReturnLast)
+    if not ScriptData.PlayerTycoon then return end
+    local Values = ScriptData.PlayerTycoon:FindFirstChild("Values")
+    if not Values then return end
+    local ReturnValue = Values:FindFirstChild(Value)
+    if not ReturnValue then return end
+    if not AnotherChild then
+        return ReturnValue
+    else
+        local Check = ReturnValue:FindFirstChild(AnotherChild)
+        if Check and not ReturnLast then
+            return ReturnValue, Check
+        elseif Check and ReturnLast then
+            return Check
+        end
+    end
+end
+
+local function FindTycoon()
+    for _, v in pairs(Workspace:GetChildren()) do
+        if v:IsA("Folder") and v.Name:match("Tycoon%d") then
+            if v:FindFirstChild("Owner") and v.Owner.Value == LocalPlayer then
+                return v
+            end
+        end
+    end
+end
+
+local function RequestComp(Class)
+    if not (ScriptData.Modules.Tycoon and Class) then return nil end
+    local Success, Return = pcall(function()
+        local LiveTycoon = ScriptData.Modules.Tycoon.getLocal()
+        return LiveTycoon and LiveTycoon:GetComponent(Class)
+    end)
+    return Success and Return or nil
+end
+
+local Resolving = false
+local function WaitForResolve()
+    Resolving = true
+    task.wait(2)
+    Resolving = false
+end
+
+-- ===== FIND TYCOON =====
+local StartTime = tick()
+repeat
+    ScriptData.PlayerTycoon = FindTycoon()
+    if tick() - StartTime > 5 then
+        Rayfield:Notify({
+            Title = "Loading...",
+            Content = "Finding your tycoon, please wait.",
+            Image = "loader",
+            Duration = 5,
+        })
+    elseif tick() - StartTime > 30 then
+        warn("[ERROR]: Tycoon unable to be found.")
+        DestroyUI()
+        return
+    end
+    task.wait(0.25)
+until ScriptData.PlayerTycoon ~= nil
+
+StartTime = tick()
+repeat 
+    ScriptData.Values = FindValues("Values")
+    if tick() - StartTime > 5 then
+        warn("[ERROR]: Values unable to be found.")
+        DestroyUI()
+        return
+    end
+until ScriptData.Values ~= nil
+
+StartTime = tick()
+repeat 
+    ScriptData.Powers = FindValues("Powers", "Permanent", true)
+    if tick() - StartTime > 5 then
+        warn("[ERROR]: Powers unable to be found.")
+        DestroyUI()
+        return
+    end
+until ScriptData.Powers ~= nil
+
+StartTime = tick()
+repeat 
+    ScriptData.Streams = FindValues("Income", "Streams", true)
+    if tick() - StartTime > 5 then
+        warn("[ERROR]: Streams unable to be found.")
+        DestroyUI()
+        return
+    end
+until ScriptData.Streams ~= nil
+
+-- ===== LOAD MODULES =====
+local S1, R1 = pcall(function()
+    ScriptData.Modules.Tycoon = require(ReplicatedStorage.Modules.Tycoon.Tycoon)
+    ScriptData.Modules.Balances = require(ReplicatedStorage.Modules.Tycoon.Component.Client.ClientTycoonBalances)
+    ScriptData.Modules.Upgrades = require(ReplicatedStorage.Modules.Tycoon.Component.Client.ClientTycoonUpgrades)
+    ScriptData.Modules.Rebirth = require(ReplicatedStorage.Modules.Tycoon.Component.Client.ClientTycoonRebirth)
+    ScriptData.Modules.Evolve = require(ReplicatedStorage.Modules.Tycoon.Component.Client.ClientTycoonEvolution)
+    ScriptData.Modules.Ascension = require(ReplicatedStorage.Modules.Tycoon.Component.Client.ClientTycoonAscension)
+    ScriptData.Modules.PhoneOffers = require(ReplicatedStorage.Modules.Tycoon.Component.Client.ClientTycoonPhoneOffers)
+    ScriptData.Modules.TycoonPowers = require(ReplicatedStorage.Modules.Tycoon.Component.Client.ClientTycoonPowers)
+    ScriptData.Modules.Analyzer = require(ReplicatedStorage.Modules.Tycoon.Component.TycoonAnalyzer)
+    ScriptData.Modules.Balance = require(ReplicatedStorage.Balance)
+end)
+
+local S2, R2 = pcall(function()
+    ScriptData.Remotes.Rebirth = ScriptData.PlayerTycoon.Remotes.Rebirth
+    ScriptData.Remotes.Evolve = ScriptData.PlayerTycoon.Remotes.Evolve
+    ScriptData.Remotes.Ascend = ScriptData.PlayerTycoon.Remotes.Ascend
+    ScriptData.Remotes.UpgradePowerLevel = ScriptData.PlayerTycoon.Remotes.UpgradePowerLevel
+    ScriptData.Remotes.WakeIncomeStream = ScriptData.PlayerTycoon.Remotes.WakeIncomeStream
+    ScriptData.Remotes.PhoneOffer = ScriptData.PlayerTycoon.Remotes.PhoneOffer
+end)
+
+if not S1 or not S2 then
+    if not S1 and not S2 then
+        Rayfield:Notify({
+            Title = "Critical Error!",
+            Content = "Failed to load modules. Please rejoin.",
+            Image = "shield-alert",
+            Duration = 3,
+        })
+        DestroyUI(5)
+        return
+    end
+    if not S1 then
+        Rayfield:Notify({
+            Title = "Module Error!",
+            Content = "Some features may not work.",
+            Image = "circle-alert",
+            Duration = 3,
+        })
+    end
+    if not S2 then
+        Rayfield:Notify({
+            Title = "Remote Error!",
+            Content = "Some features may not work.",
+            Image = "circle-alert",
+            Duration = 3,
+        })
+    end
+end
+
+-- ===== NOTIFICATION HELPER =====
+local function Notify(Title, Content, Image, Duration)
+    Rayfield:Notify({
+        Title = Title,
+        Content = Content,
+        Image = Image or "info",
+        Duration = Duration or 3,
+    })
+end
+
+-- ===== AUTO BUY LOOP =====
+task.spawn(function()
+    local IsBusy = false
+    local function BuyButtons()
+        if IsBusy or Resolving then return end
+        IsBusy = true
+        local Analyzer = RequestComp(ScriptData.Modules.Analyzer)
+        if not Analyzer then IsBusy = false return end
+        local Purchases = Analyzer:GetPurchases()
+        for _, id in ipairs(ScriptData.Modules.Balance.PurchaseOrder) do
+            local Purchase = Purchases[id]
+            if Purchase and Purchase:IsEnabled() and not Purchase:IsPurchased() then
+                local Remote = Purchase.Instance:FindFirstChild("Purchase", true)
+                if Remote and Remote:IsA("RemoteFunction") then
+                    if ScriptData.MainSettings.ButtonBuy.UseForeverPurchase then
+                        local Success = pcall(function() Remote:InvokeServer(true) end)
+                        if not Success then pcall(function() Remote:InvokeServer() end) end
+                    else
+                        pcall(function() Remote:InvokeServer() end)
+                    end
+                end
+                if type(ScriptData.MainSettings.ButtonBuy.BuyInterval) == "number" and ScriptData.MainSettings.ButtonBuy.BuyInterval > 0 then
+                    task.wait(ScriptData.MainSettings.ButtonBuy.BuyInterval)
+                end
+                break
+            end
+        end
+        IsBusy = false
+    end
+    while true do task.wait()
+        if ScriptData.AutoBuy then BuyButtons() end
+    end
+end)
+
+-- ===== AUTO UPGRADE LOOP =====
+task.spawn(function()
+    local UpgradeRemotes = {}
+    local LastUpgradeScan = 0
+    local function RefreshUpgradeRemotes()
+        UpgradeRemotes = {}
+        local Purchases = ScriptData.PlayerTycoon:FindFirstChild("Purchases")
+        if not Purchases then return end
+        for _, v in ipairs(Purchases:GetDescendants()) do
+            if v:IsA("RemoteFunction") and v.Name == "Upgrade" then
+                table.insert(UpgradeRemotes, v)
+            end
+        end
+    end
+    while true do task.wait(0.5)
+        if not ScriptData.AutoUpgrade then continue end
+        if tick() - LastUpgradeScan > 3 then
+            RefreshUpgradeRemotes()
+            LastUpgradeScan = tick()
+        end
+        for _, r in ipairs(UpgradeRemotes) do
+            if r.Parent then
+                task.spawn(function()
+                    for i = 1, ScriptData.MainSettings.Upgrade.UpgradeAmount do
+                        task.wait(ScriptData.MainSettings.Upgrade.UpgradeDelay)
+                        pcall(function() r:InvokeServer(i) end)
+                    end
+                end)
+            end
+        end
+    end
+end)
+
+-- ===== AUTO REBIRTH LOOP =====
+task.spawn(function()
+    local RebirthBusy = false
+    local LastConflictNotify = 0
+    local LastUnableBuyTime = 0
+    local LastRebirthTime = tick()
+    local LastTimeState = false
+    local LastSuccessfulRebirth = 0
+    local LastAutoRebirthToggle = 0
+
+    local function GetBalances() return RequestComp(ScriptData.Modules.Balances) end
+    local function GetRebirth() return RequestComp(ScriptData.Modules.Rebirth) end
+    local function GetCurrentInvestors()
+        local Balances = GetBalances()
+        if not Balances then return 0 end
+        local Success, Value = pcall(function() return Balances:GetInvestors() end)
+        return Success and Value or 0
+    end
+    local function GetPotentialInvestors()
+        local RebirthComp = GetRebirth()
+        if not RebirthComp then return 0 end
+        local Success, Value = pcall(function() return RebirthComp:GetPotentialInvestors() end)
+        return Success and Value or 0
+    end
+    local function IsMinimumMet(PotentialLog, Minimum)
+        if Minimum == 0 then return true end
+        return PotentialLog >= math.log10(Minimum)
+    end
+    local function GetInvestorMultiplierCondition(PotentialLog, CurrentLog, Multiplier)
+        return PotentialLog >= CurrentLog + math.log10(Multiplier)
+    end
+    local function DoRebirth()
+        pcall(function() 
+            ScriptData.Remotes.Rebirth:InvokeServer()
+            ScriptData.Stats.TotalRebirths = ScriptData.Stats.TotalRebirths + 1
+            WaitForResolve()
+        end)
+    end
+    local function HasAnythingToBuy()
+        for _, v in ipairs(ScriptData.PlayerTycoon.Purchases:GetDescendants()) do
+            if v:IsA("Model") then
+                local Shown = v:GetAttribute("Shown")
+                local Purchased = v:GetAttribute("Purchased")
+                if Shown == true and Purchased ~= true then return true end
+            end
+        end
+        return false
+    end
+    local function GetCurrentRebirths()
+        if not ScriptData.Values then return 0 end
+        return ScriptData.Values:GetAttribute("Rebirths") or 0
+    end
+
+    while true do task.wait(0.1)
+        if not ScriptData.AutoRebirth or RebirthBusy then 
+            if not ScriptData.AutoRebirth then LastAutoRebirthToggle = 0 end
+            continue 
+        end
+        if LastAutoRebirthToggle == 0 then LastAutoRebirthToggle = tick() continue end
+        if tick() - LastAutoRebirthToggle < 3 then continue end
+        if tick() - LastSuccessfulRebirth < ScriptData.MainSettings.Rebirth.AutoRebirthDelay then continue end
+        local Remote = ScriptData.Remotes.Rebirth
+        if not Remote then continue end
+
+        local MaxRebirths = ScriptData.MainSettings.Rebirth.MaximumRebirths
+        if MaxRebirths > 0 then
+            local CurrentRebirths = GetCurrentRebirths()
+            if CurrentRebirths >= MaxRebirths then continue end
+        end
+
+        local Settings = ScriptData.MainSettings.Rebirth
+        local ShouldRebirth = false
+
+        if Settings.RebirthWhenUnableToBuy and Settings.RebirthAfterCertainTime then
+            if tick() - LastConflictNotify >= 5 then
+                Notify("Rebirth Conflict", "Cannot use both rebirth modes together!", "alert-circle", 5)
+                LastConflictNotify = tick()
+            end
+            continue
+        end
+
+        if Settings.RebirthAfterCertainTime then
+            if LastTimeState ~= true then LastRebirthTime = tick() LastTimeState = true end
+            if tick() - LastRebirthTime >= Settings.TimeAmount then ShouldRebirth = true end
+        else
+            LastTimeState = false
+            if Settings.RebirthWhenUnableToBuy then
+                if not HasAnythingToBuy() then
+                    if LastUnableBuyTime == 0 then LastUnableBuyTime = tick()
+                    elseif tick() - LastUnableBuyTime >= Settings.TimeBeforeRebirthWhenUnableToBuy then ShouldRebirth = true end
+                else LastUnableBuyTime = 0 end
+            end
+            if not ShouldRebirth then
+                local Potential = GetPotentialInvestors()
+                local Current = GetCurrentInvestors()
+                if Potential > 0 then
+                    local MinMet = IsMinimumMet(Potential, Settings.MinimumPotential)
+                    if MinMet then
+                        if Settings.XFactor > 0 then
+                            if GetInvestorMultiplierCondition(Potential, Current, Settings.XFactor) then ShouldRebirth = true end
+                        elseif Settings.MinimumPotential > 0 then ShouldRebirth = true
+                        elseif Settings.XFactor == 0 and Settings.MinimumPotential == 0 then
+                            if tick() - LastRebirthTime >= 8 then ShouldRebirth = true end
+                        end
+                    end
+                end
+            end
+        end
+
+        if ShouldRebirth and ScriptData.AutoRebirth then
+            RebirthBusy = true
+            DoRebirth()
+            LastRebirthTime = tick()
+            LastUnableBuyTime = 0
+            LastSuccessfulRebirth = tick()
+            LastAutoRebirthToggle = tick()
+            task.wait(1.5)
+            RebirthBusy = false
+        end
+    end
+end)
+
+-- ===== AUTO EVOLVE LOOP =====
+task.spawn(function()
+    local function TryEvolve()
+        pcall(function()
+            ScriptData.Remotes.Evolve:InvokeServer()
+            ScriptData.Stats.TotalEvolves = ScriptData.Stats.TotalEvolves + 1
+            WaitForResolve()
+        end)
+    end
+    while true do task.wait(ScriptData.MainSettings.Evolve.AutoEvolveDelay)
+        if not ScriptData.AutoEvolve then continue end
+        local FreshModule = RequestComp(ScriptData.Modules.Evolve)
+        if not FreshModule then continue end
+        local Progress = FreshModule:GetEvolutionProgress()
+        if Progress == 1 and ScriptData.MainSettings.Evolve.MaximumEvolution > 0 then
+            local CurrentEvolve = ScriptData.Values:GetAttribute("Evolution")
+            if CurrentEvolve and CurrentEvolve < ScriptData.MainSettings.Evolve.MaximumEvolution then TryEvolve() end
+        elseif Progress == 1 and ScriptData.MainSettings.Evolve.MaximumEvolution == 0 then TryEvolve() end
+    end
+end)
+
+-- ===== AUTO ASCEND LOOP =====
+task.spawn(function()
+    local function TryAscend()
+        pcall(function()
+            ScriptData.Remotes.Ascend:InvokeServer()
+            ScriptData.Stats.TotalAscends = ScriptData.Stats.TotalAscends + 1
+            WaitForResolve()
+        end)
+    end
+    while true do task.wait(ScriptData.MainSettings.Ascend.AutoAscendDelay)
+        if not ScriptData.AutoAscend then continue end
+        local FreshModule = RequestComp(ScriptData.Modules.Ascension)
+        if not FreshModule then continue end
+        local Progress = FreshModule:GetAscensionProgress()
+        if Progress == 1 then TryAscend() end
+    end
+end)
+
+-- ===== AUTO BUY POWERS LOOP =====
+task.spawn(function()
+    local function TryBuyPowers()
+        local FreshModule = RequestComp(ScriptData.Modules.TycoonPowers)
+        if not FreshModule then return end
+        local Success, Levels = pcall(function() return FreshModule:GetLevels() end)
+        if not Success or not Levels then return end
+        for PowerName, CurrentLevel in pairs(Levels) do
+            local MaxLevel = FreshModule:GetMaxLevel(PowerName)
+            if not MaxLevel or CurrentLevel < MaxLevel then
+                pcall(function() FreshModule:UpgradeAsync(PowerName) end)
+                task.wait(0.1)
+            end
+        end
+    end
+    while true do task.wait(0.5)
+        if not ScriptData.AutoBuyPowers then continue end
+        TryBuyPowers()
+    end
+end)
+
+-- ===== AUTO PHONE OFFERS LOOP =====
+task.spawn(function()
+    local Phone = ScriptData.Remotes.PhoneOffer
+    local function AcceptOffer()
+        if ScriptData.AutoPhoneOffers then pcall(function() Phone:FireServer("Accept") end) end
+    end
+    Phone.OnClientEvent:Connect(function(value)
+        if type(value) == "number" then AcceptOffer() end
+    end)
+    while true do task.wait(1)
+        if ScriptData.AutoPhoneOffers then
+            local FreshModule = RequestComp(ScriptData.Modules.PhoneOffers)
+            if FreshModule then
+                local Success, Offer = pcall(function() return FreshModule:GetCurrentOffer() end)
+                if Success and type(Offer) == "number" then AcceptOffer() end
+            end
+        end
+    end
+end)
+
+-- ===== AUTO WAKE INCOME LOOP =====
+task.spawn(function()
+    local IncomeStreams = {}
+    local function IndexStreams()
+        IncomeStreams = {}
+        for i, v in pairs(ScriptData.Streams:GetChildren()) do table.insert(IncomeStreams, v) end
+    end
+    local function TryWakeIncome()
+        if #IncomeStreams == 0 then IndexStreams() end
+        for i, v in ipairs(IncomeStreams) do
+            local Check = v:GetAttribute("Automatic")
+            if not Check then pcall(function() ScriptData.Remotes.WakeIncomeStream:InvokeServer(tostring(v)) end) end
+        end
+    end
+    while true do task.wait()
+        if not ScriptData.AutoWakeIncome then continue end
+        TryWakeIncome()
+    end
+end)
+
+-- ===== AUTO COLLECT FRUITS LOOP =====
+task.spawn(function()
+    local Trees = {}
+    local OriginalCFrame = nil
+    local function UpdateTree(v, IsAdding)
+        if v:IsA("Model") and v.Name == "LemonTree" then
+            if IsAdding then
+                if not table.find(Trees, v) then table.insert(Trees, v) end
+            else
+                local Index = table.find(Trees, v)
+                if Index then table.remove(Trees, Index) end
+            end
+        end
+    end
+    for _, v in ipairs(Workspace:GetDescendants()) do UpdateTree(v, true) end
+    Workspace.DescendantAdded:Connect(function(v) UpdateTree(v, true) end)
+    Workspace.DescendantRemoving:Connect(function(v) UpdateTree(v, false) end)
+    
+    while true do task.wait(ScriptData.MainSettings.FruitCollect.CollectDelay)
+        if ScriptData.AutoCollectFruits then
+            for _, Tree in ipairs(Trees) do
+                if Tree and Tree.Parent then
+                    for _, v in ipairs(Tree:GetDescendants()) do
+                        if v:IsA("BasePart") and v.Name == "Fruit" then
+                            if not ScriptData.AutoCollectFruits then break end
+                            local Detector = v:FindFirstChild("ClickPart") and v.ClickPart:FindFirstChildOfClass("ClickDetector")
+                            if Detector then
+                                local Character = LocalPlayer.Character
+                                local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+                                if HumanoidRootPart then
+                                    pcall(function()
+                                        if not OriginalCFrame and ScriptData.MainSettings.FruitCollect.TeleportToTree then
+                                            OriginalCFrame = HumanoidRootPart.CFrame
+                                        end
+                                        if ScriptData.MainSettings.FruitCollect.TeleportToTree then
+                                            HumanoidRootPart.CFrame = Tree:GetPivot() + Vector3.new(0, Tree:GetExtentsSize().Y/2, 0)
+                                        end
+                                        task.wait(0.05)
+                                        fireclickdetector(Detector)
+                                        ScriptData.Stats.TotalFruitsCollected = ScriptData.Stats.TotalFruitsCollected + 1
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        elseif OriginalCFrame then
+            local Character = LocalPlayer.Character
+            local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+            if HumanoidRootPart then
+                pcall(function()
+                    HumanoidRootPart.CFrame = OriginalCFrame
+                    OriginalCFrame = nil
+                end)
+            end
+        end
+    end
+end)
+
+-- ===== AUTO CLICK BUTTON (NEW FEATURE) =====
+task.spawn(function()
+    local function ClickRandomButton()
+        local Purchases = ScriptData.PlayerTycoon:FindFirstChild("Purchases")
+        if not Purchases then return end
+        local Buttons = {}
+        for _, v in ipairs(Purchases:GetDescendants()) do
+            if v:IsA("Model") and v:GetAttribute("Shown") == true and v:GetAttribute("Purchased") ~= true then
+                table.insert(Buttons, v)
+            end
+        end
+        if #Buttons > 0 then
+            local Selected = Buttons[math.random(1, #Buttons)]
+            local ClickPart = Selected:FindFirstChild("ClickPart")
+            if ClickPart then
+                local Detector = ClickPart:FindFirstChildOfClass("ClickDetector")
+                if Detector then
+                    pcall(function() fireclickdetector(Detector) end)
+                end
+            end
+        end
+    end
+    while true do task.wait(2)
+        if ScriptData.AutoClickButton then
+            ClickRandomButton()
+        end
+    end
+end)
+
+-- ===== UI CREATION =====
+local MainTab = Window:CreateTab("Main")
+local SettingsTab = Window:CreateTab("Settings")
+local StatsTab = Window:CreateTab("Stats")
+local MiscTab = Window:CreateTab("Misc")
+
+-- ===== MAIN TAB =====
+MainTab:CreateSection("⚡ Auto Farm")
+
+MainTab:CreateToggle({
+    Name = "🔁 Auto Buy Buttons",
+    CurrentValue = false,
+    Flag = "AutoBuy",
+    Callback = function(v)
+        ScriptData.AutoBuy = v
+        Notify("Auto Buy", v and "Enabled! Will buy buttons automatically." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "⬆️ Auto Upgrade",
+    CurrentValue = false,
+    Flag = "AutoUpgrade",
+    Callback = function(v)
+        ScriptData.AutoUpgrade = v
+        Notify("Auto Upgrade", v and "Enabled! Will upgrade income sources." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "🔄 Auto Rebirth",
+    CurrentValue = false,
+    Flag = "AutoRebirth",
+    Callback = function(v)
+        ScriptData.AutoRebirth = v
+        Notify("Auto Rebirth", v and "Enabled! Check settings for options." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "🌟 Auto Evolve",
+    CurrentValue = false,
+    Flag = "AutoEvolve",
+    Callback = function(v)
+        ScriptData.AutoEvolve = v
+        Notify("Auto Evolve", v and "Enabled! Will evolve when ready." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "🚀 Auto Ascend",
+    CurrentValue = false,
+    Flag = "AutoAscend",
+    Callback = function(v)
+        ScriptData.AutoAscend = v
+        Notify("Auto Ascend", v and "Enabled! Will ascend when ready." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateDivider()
+MainTab:CreateSection("🛠️ Extra Features")
+
+MainTab:CreateToggle({
+    Name = "💪 Auto Buy Powers",
+    CurrentValue = false,
+    Flag = "AutoBuyPowers",
+    Callback = function(v)
+        ScriptData.AutoBuyPowers = v
+        Notify("Auto Buy Powers", v and "Enabled! Will buy powers." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "📱 Auto Phone Offers",
+    CurrentValue = false,
+    Flag = "AutoPhoneOffers",
+    Callback = function(v)
+        ScriptData.AutoPhoneOffers = v
+        Notify("Auto Phone Offers", v and "Enabled! Will accept offers." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "💤 Auto Wake Income",
+    CurrentValue = false,
+    Flag = "AutoWakeIncome",
+    Callback = function(v)
+        ScriptData.AutoWakeIncome = v
+        Notify("Auto Wake Income", v and "Enabled! Will wake income sources." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "🍋 Collect Fruits",
+    CurrentValue = false,
+    Flag = "AutoCollectFruits",
+    Callback = function(v)
+        ScriptData.AutoCollectFruits = v
+        Notify("Collect Fruits", v and "Enabled! Will collect fruits." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "🎯 Auto Click Button (Random)",
+    CurrentValue = false,
+    Flag = "AutoClickButton",
+    Callback = function(v)
+        ScriptData.AutoClickButton = v
+        Notify("Auto Click Button", v and "Enabled! Will click random buttons." or "Disabled.", v and "check" or "x", 2)
+    end,
+})
+
+-- ===== SETTINGS TAB =====
+SettingsTab:CreateSection("📦 Auto Buy Settings")
+
+SettingsTab:CreateInput({
+    Name = "Buy Interval (seconds)",
+    CurrentValue = "0.05",
+    PlaceholderText = "0.05",
+    RemoveTextAfterFocusLost = false,
+    Flag = "BuyInterval",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.ButtonBuy.BuyInterval = Number
+            Notify("Buy Interval", "Set to " .. tostring(Number) .. "s", "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateToggle({
+    Name = "Use Forever Purchase",
+    CurrentValue = false,
+    Flag = "UseForeverPurchase",
+    Callback = function(v)
+        ScriptData.MainSettings.ButtonBuy.UseForeverPurchase = v
+        Notify("Forever Purchase", v and "Enabled" or "Disabled", v and "check" or "x", 2)
+    end,
+})
+
+SettingsTab:CreateDivider()
+SettingsTab:CreateSection("🔄 Rebirth Settings")
+
+SettingsTab:CreateInput({
+    Name = "Max Rebirths (0 = off)",
+    CurrentValue = "0",
+    PlaceholderText = "0",
+    RemoveTextAfterFocusLost = false,
+    Flag = "MaxRebirths",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Rebirth.MaximumRebirths = Number
+            Notify("Max Rebirths", "Set to " .. tostring(Number), "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateInput({
+    Name = "Minimum Investors",
+    CurrentValue = "1000",
+    PlaceholderText = "1000",
+    RemoveTextAfterFocusLost = false,
+    Flag = "MinInvestors",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Rebirth.MinimumPotential = Number
+            Notify("Min Investors", "Set to " .. tostring(Number), "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateInput({
+    Name = "X Factor (0 = off)",
+    CurrentValue = "10",
+    PlaceholderText = "10",
+    RemoveTextAfterFocusLost = false,
+    Flag = "XFactor",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Rebirth.XFactor = Number
+            Notify("X Factor", "Set to " .. tostring(Number) .. "x", "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateInput({
+    Name = "Rebirth Cooldown (seconds)",
+    CurrentValue = "2.5",
+    PlaceholderText = "2.5",
+    RemoveTextAfterFocusLost = false,
+    Flag = "RebirthCooldown",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Rebirth.AutoRebirthDelay = Number
+            Notify("Rebirth Cooldown", "Set to " .. tostring(Number) .. "s", "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateToggle({
+    Name = "Rebirth When Unable to Buy",
+    CurrentValue = false,
+    Flag = "RebirthUnable",
+    Callback = function(v)
+        ScriptData.MainSettings.Rebirth.RebirthWhenUnableToBuy = v
+        Notify("Rebirth Unable", v and "Enabled" or "Disabled", v and "check" or "x", 2)
+    end,
+})
+
+SettingsTab:CreateInput({
+    Name = "Unable to Buy Timeout (s)",
+    CurrentValue = "30",
+    PlaceholderText = "30",
+    RemoveTextAfterFocusLost = false,
+    Flag = "UnableTimeout",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Rebirth.TimeBeforeRebirthWhenUnableToBuy = Number
+            Notify("Timeout", "Set to " .. tostring(Number) .. "s", "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end    end,
+})
+
+SettingsTab:CreateToggle({
+    Name = "Rebirth After Certain Time",
+    CurrentValue = false,
+    Flag = "RebirthTime",
+    Callback = function(v)
+        ScriptData.MainSettings.Rebirth.RebirthAfterCertainTime = v
+        Notify("Rebirth Time", v and "Enabled" or "Disabled", v and "check" or "x", 2)
+    end,
+})
+
+SettingsTab:CreateInput({
+    Name = "Time Interval (seconds)",
+    CurrentValue = "60",
+    PlaceholderText = "60",
+    RemoveTextAfterFocusLost = false,
+    Flag = "TimeInterval",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Rebirth.TimeAmount = Number
+            Notify("Time Interval", "Set to " .. tostring(Number) .. "s", "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateDivider()
+SettingsTab:CreateSection("🌟 Evolve & Ascend Settings")
+
+SettingsTab:CreateInput({
+    Name = "Max Evolve (0 = off)",
+    CurrentValue = "0",
+    PlaceholderText = "0",
+    RemoveTextAfterFocusLost = false,
+    Flag = "MaxEvolve",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Evolve.MaximumEvolution = Number
+            Notify("Max Evolve", "Set to " .. tostring(Number), "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateDivider()
+SettingsTab:CreateSection("🍋 Fruit Collection Settings")
+
+SettingsTab:CreateInput({
+    Name = "Collect Delay (seconds)",
+    CurrentValue = "0.1",
+    PlaceholderText = "0.1",
+    RemoveTextAfterFocusLost = false,
+    Flag = "FruitDelay",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.FruitCollect.CollectDelay = Number
+            Notify("Collect Delay", "Set to " .. tostring(Number) .. "s", "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateToggle({
+    Name = "Teleport to Trees",
+    CurrentValue = true,
+    Flag = "TeleportToTrees",
+    Callback = function(v)
+        ScriptData.MainSettings.FruitCollect.TeleportToTree = v
+        Notify("Teleport to Trees", v and "Enabled" or "Disabled", v and "check" or "x", 2)
+    end,
+})
+
+SettingsTab:CreateDivider()
+SettingsTab:CreateSection("⬆️ Upgrade Settings")
+
+SettingsTab:CreateInput({
+    Name = "Upgrade Amount per Loop",
+    CurrentValue = "10",
+    PlaceholderText = "10",
+    RemoveTextAfterFocusLost = false,
+    Flag = "UpgradeAmount",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Upgrade.UpgradeAmount = Number
+            Notify("Upgrade Amount", "Set to " .. tostring(Number), "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+SettingsTab:CreateInput({
+    Name = "Upgrade Delay (seconds)",
+    CurrentValue = "0.5",
+    PlaceholderText = "0.5",
+    RemoveTextAfterFocusLost = false,
+    Flag = "UpgradeDelay",
+    Callback = function(Text)
+        local Number = tonumber(Text)
+        if Number and Number >= 0 then
+            ScriptData.MainSettings.Upgrade.UpgradeDelay = Number
+            Notify("Upgrade Delay", "Set to " .. tostring(Number) .. "s", "check", 2)
+        else
+            Notify("Error", "Invalid number!", "alert-circle", 2)
+        end
+    end,
+})
+
+-- ===== STATS TAB =====
+StatsTab:CreateSection("📊 Statistics")
+
+StatsTab:CreateLabel("⏱️ Session Time: " .. math.floor((tick() - ScriptData.Stats.StartTime) / 60) .. "m")
+
+StatsTab:CreateLabel("🔄 Total Rebirths: " .. tostring(ScriptData.Stats.TotalRebirths))
+StatsTab:CreateLabel("🌟 Total Evolves: " .. tostring(ScriptData.Stats.TotalEvolves))
+StatsTab:CreateLabel("🚀 Total Ascends: " .. tostring(ScriptData.Stats.TotalAscends))
+StatsTab:CreateLabel("🍋 Fruits Collected: " .. tostring(ScriptData.Stats.TotalFruitsCollected))
+
+StatsTab:CreateDivider()
+StatsTab:CreateSection("ℹ️ Information")
+
+StatsTab:CreateLabel("📌 Script: NNVN Hub")
+StatsTab:CreateLabel("👤 Author: N0NAMEVN")
+StatsTab:CreateLabel("🎮 Game: Sell Lemons")
+StatsTab:CreateLabel("📅 Version: 2.0")
+
+StatsTab:CreateDivider()
+StatsTab:CreateButton({
+    Name = "🔄 Refresh Stats",
+    Callback = function()
+        Notify("Stats", "Refreshed!", "check", 2)
+    end,
+})
+
+-- ===== MISC TAB =====
+MiscTab:CreateSection("⚙️ Utilities")
+
+MiscTab:CreateToggle({
+    Name = "🎮 Disable 3D Rendering (FPS Boost)",
+    CurrentValue = false,
+    Flag = "Disable3D",
+    Callback = function(v)
+        RunService:Set3dRenderingEnabled(not v)
+        Notify("3D Rendering", v and "Disabled (FPS Boost)" or "Enabled", v and "eye-off" or "eye", 2)
+    end,
+})
+
+MiscTab:CreateDivider()
+MiscTab:CreateSection("🛠️ Actions")
+
+MiscTab:CreateButton({
+    Name = "💀 Destroy UI",
+    Callback = function()
+        DestroyUI()
+    end,
+})
+
+MiscTab:CreateButton({
+    Name = "🔄 Rejoin Game",
+    Callback = function()
+        Notify("Rejoin", "Rejoining game...", "loader", 3)
+        task.wait(1)
+        game:GetService("TeleportService"):Teleport(game.PlaceId)
+    end,
+})
+
+MiscTab:CreateButton({
+    Name = "📋 Copy Discord Invite",
+    Callback = function()
+        setclipboard("discord.gg/yourdiscord")
+        Notify("Copied!", "Discord invite copied to clipboard!", "clipboard", 2)
+    end,
+})
+
+MiscTab:CreateDivider()
+MiscTab:CreateSection("💬 Credits")
+
+MiscTab:CreateLabel("Made with ❤️ by N0NAMEVN")
+MiscTab:CreateLabel("Special thanks to Rayfield library")
+
+-- Script finished loading
+Notify("NNVN Hub", "Loaded successfully! Made by N0NAMEVN", "check", 3)
+print(ProtectionConfig.HubName .. " Loaded Successfully!")
